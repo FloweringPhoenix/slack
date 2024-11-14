@@ -19,11 +19,24 @@ func (s InputBlock) BlockType() MessageBlockType {
 }
 
 // NewInputBlock returns a new instance of an input block
-func NewInputBlock(blockID string, label *TextBlockObject, element BlockElement) *InputBlock {
+func NewInputBlock(blockID string, label, hint *TextBlockObject, element BlockElement) *InputBlock {
 	return &InputBlock{
 		Type:    MBTInput,
 		BlockID: blockID,
 		Label:   label,
 		Element: element,
+		Hint:    hint,
 	}
+}
+
+// WithOptional sets the optional flag on the input block
+func (s *InputBlock) WithOptional(optional bool) *InputBlock {
+	s.Optional = optional
+	return s
+}
+
+// WithDispatchAction sets the dispatch action flag on the input block
+func (s *InputBlock) WithDispatchAction(dispatchAction bool) *InputBlock {
+	s.DispatchAction = dispatchAction
+	return s
 }

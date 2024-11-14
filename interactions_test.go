@@ -68,7 +68,8 @@ const (
 					"text": "Select a date"
 				  }
 				}
-			}]
+			}],
+			"app_installed_team_id": "T1ABCD2E12"
 		},
 		"api_app_id": "A123ABC",
 		"is_cleared": false
@@ -137,7 +138,8 @@ const (
 						}
 					}
 				}
-			}
+			},
+			"app_installed_team_id": "T1ABCD2E12"
 		},
 		"hash": "156663117.cd33ad1f",
 		"response_urls": [
@@ -221,6 +223,7 @@ func TestViewClosedck(t *testing.T) {
 					),
 				},
 			},
+			AppInstalledTeamID: "T1ABCD2E12",
 		},
 		APIAppID: "A123ABC",
 	}
@@ -256,6 +259,7 @@ func TestViewSubmissionCallback(t *testing.T) {
 							false,
 							false,
 						),
+						nil,
 						&PlainTextInputBlockElement{
 							Type:      "plain_text_input",
 							ActionID:  "ml-value",
@@ -270,6 +274,7 @@ func TestViewSubmissionCallback(t *testing.T) {
 							false,
 							false,
 						),
+						nil,
 						&SelectBlockElement{
 							Type:                         "conversations_select",
 							ActionID:                     "target_select",
@@ -281,20 +286,21 @@ func TestViewSubmissionCallback(t *testing.T) {
 			},
 			State: &ViewState{
 				Values: map[string]map[string]BlockAction{
-					"multi-line": map[string]BlockAction{
-						"ml-value": BlockAction{
+					"multi-line": {
+						"ml-value": {
 							Type:  "plain_text_input",
 							Value: "No onions",
 						},
 					},
-					"target_channel": map[string]BlockAction{
-						"target_select": BlockAction{
+					"target_channel": {
+						"target_select": {
 							Type:  "conversations_select",
 							Value: "C1AB2C3DE",
 						},
 					},
 				},
 			},
+			AppInstalledTeamID: "T1ABCD2E12",
 		},
 		ViewSubmissionCallback: ViewSubmissionCallback{
 			Hash: "156663117.cd33ad1f",

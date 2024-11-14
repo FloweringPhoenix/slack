@@ -2,19 +2,20 @@ package main
 
 import (
 	"bytes"
-	"github.com/slack-go/slack"
-	"io/ioutil"
+	"io"
 	"net/http"
+
+	"github.com/slack-go/slack"
 )
 
 func (v *SecretsVerifierMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	r.Body.Close()
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	sv, err := slack.NewSecretsVerifier(r.Header, appCtx.config.signingSecret)
 	if err != nil {

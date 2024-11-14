@@ -147,6 +147,16 @@ func (s TextBlockObject) Validate() error {
 		return errors.New("emoji cannot be true in mrkdown")
 	}
 
+	// https://api.slack.com/reference/block-kit/composition-objects#text__fields
+	if len(s.Text) == 0 {
+		return errors.New("text must have a minimum length of 1")
+	}
+
+	// https://api.slack.com/reference/block-kit/composition-objects#text__fields
+	if len(s.Text) > 3000 {
+		return errors.New("text cannot be longer than 3000 characters")
+	}
+
 	return nil
 }
 
@@ -177,7 +187,7 @@ type ConfirmationBlockObject struct {
 	Title   *TextBlockObject `json:"title"`
 	Text    *TextBlockObject `json:"text"`
 	Confirm *TextBlockObject `json:"confirm"`
-	Deny    *TextBlockObject `json:"deny"`
+	Deny    *TextBlockObject `json:"deny,omitempty"`
 	Style   Style            `json:"style,omitempty"`
 }
 
@@ -187,8 +197,9 @@ func (s ConfirmationBlockObject) validateType() MessageObjectType {
 }
 
 // WithStyle add styling to confirmation object
-func (s *ConfirmationBlockObject) WithStyle(style Style) {
+func (s *ConfirmationBlockObject) WithStyle(style Style) *ConfirmationBlockObject {
 	s.Style = style
+	return s
 }
 
 // NewConfirmationBlockObject returns an instance of a new Confirmation Block Object
