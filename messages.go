@@ -49,6 +49,7 @@ const (
 	MsgSubTypeUnpinnedItem              = "unpinned_item"               // [RTM] An item was unpinned from a channel
 	MsgSubTypeEkmAccessDenied           = "ekm_access_denied"           // [Events API, RTM] Message content redacted due to Enterprise Key Management (EKM)
 	MsgSubTypeChannelPostingPermissions = "channel_posting_permissions" // [Events API, RTM] The posting permissions for a channel changed
+	MsgSubTypeAssistantAppThread        = "assistant_app_thread"        // [Events API, RTM] The message is an app assistant thread
 )
 
 // Msg contains information about a slack message
@@ -100,10 +101,11 @@ type Msg struct {
 	Members []string `json:"members,omitempty"`
 
 	// channels.replies, groups.replies, im.replies, mpim.replies
-	ReplyCount   int     `json:"reply_count,omitempty"`
-	Replies      []Reply `json:"replies,omitempty"`
-	ParentUserId string  `json:"parent_user_id,omitempty"`
-	LatestReply  string  `json:"latest_reply,omitempty"`
+	ReplyCount   int      `json:"reply_count,omitempty"`
+	ReplyUsers   []string `json:"reply_users,omitempty"`
+	Replies      []Reply  `json:"replies,omitempty"`
+	ParentUserId string   `json:"parent_user_id,omitempty"`
+	LatestReply  string   `json:"latest_reply,omitempty"`
 
 	// file_share, file_comment, file_mention
 	Files []File `json:"files,omitempty"`
@@ -129,8 +131,13 @@ type Msg struct {
 	ReplaceOriginal bool   `json:"replace_original"`
 	DeleteOriginal  bool   `json:"delete_original"`
 
+	// metadata
+	Metadata SlackMetadata `json:"metadata,omitempty"`
+
 	// Block type Message
 	Blocks Blocks `json:"blocks,omitempty"`
+	// permalink
+	Permalink string `json:"permalink,omitempty"`
 }
 
 const (

@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/slack-go/slack"
 )
 
 func TestDefaultNewServer(t *testing.T) {
@@ -47,7 +48,7 @@ func TestBotDirectMessageBotHandler(t *testing.T) {
 	s := NewTestServer()
 	go s.Start()
 	s.SendDirectMessageToBot("some text")
-	expectedMsg := fmt.Sprintf("some text")
+	expectedMsg := "some text"
 	time.Sleep(2 * time.Second)
 	assert.True(t, s.SawOutgoingMessage(expectedMsg))
 	s.Stop()

@@ -1,11 +1,14 @@
 package slack
 
 import (
+	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"reflect"
+	"regexp"
 	"testing"
 )
 
@@ -39,7 +42,6 @@ func TestGetPermalink(t *testing.T) {
 	timeStamp := "p135854651500008"
 
 	http.HandleFunc("/chat.getPermalink", func(rw http.ResponseWriter, r *http.Request) {
-
 		if got, want := r.Header.Get("Content-Type"), "application/x-www-form-urlencoded"; got != want {
 			t.Errorf("request uses unexpected content type: got %s, want %s", got, want)
 		}
@@ -82,6 +84,14 @@ func TestPostMessage(t *testing.T) {
 	blockStr := `[{"type":"context","block_id":"context","elements":[{"type":"plain_text","text":"hello"}]}]`
 
 	tests := map[string]messageTest{
+		"OnlyBasicProperties": {
+			endpoint: "/chat.postMessage",
+			opt:      []MsgOption{},
+			expected: url.Values{
+				"channel": []string{"CXXX"},
+				"token":   []string{"testing-token"},
+			},
+		},
 		"Blocks": {
 			endpoint: "/chat.postMessage",
 			opt: []MsgOption{
@@ -107,6 +117,24 @@ func TestPostMessage(t *testing.T) {
 				"attachments": []string{`[{"blocks":` + blockStr + `}]`},
 				"channel":     []string{"CXXX"},
 				"token":       []string{"testing-token"},
+			},
+		},
+		"Metadata": {
+			endpoint: "/chat.postMessage",
+			opt: []MsgOption{
+				MsgOptionMetadata(
+					SlackMetadata{
+						EventType: "testing-event",
+						EventPayload: map[string]interface{}{
+							"id":   13,
+							"name": "testing-name",
+						},
+					}),
+			},
+			expected: url.Values{
+				"metadata": []string{`{"event_type":"testing-event","event_payload":{"id":13,"name":"testing-name"}}`},
+				"channel":  []string{"CXXX"},
+				"token":    []string{"testing-token"},
 			},
 		},
 		"Unfurl": {
@@ -157,6 +185,28 @@ func TestPostMessage(t *testing.T) {
 				"user_auth_message": []string{"Please!"},
 			},
 		},
+		"LinkNames true": {
+			endpoint: "/chat.postMessage",
+			opt: []MsgOption{
+				MsgOptionLinkNames(true),
+			},
+			expected: url.Values{
+				"channel":    []string{"CXXX"},
+				"token":      []string{"testing-token"},
+				"link_names": []string{"true"},
+			},
+		},
+		"LinkNames false": {
+			endpoint: "/chat.postMessage",
+			opt: []MsgOption{
+				MsgOptionLinkNames(false),
+			},
+			expected: url.Values{
+				"channel":    []string{"CXXX"},
+				"token":      []string{"testing-token"},
+				"link_names": []string{"false"},
+			},
+		},
 	}
 
 	once.Do(startServer)
@@ -166,7 +216,7 @@ func TestPostMessage(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			http.DefaultServeMux = new(http.ServeMux)
 			http.HandleFunc(test.endpoint, func(rw http.ResponseWriter, r *http.Request) {
-				body, err := ioutil.ReadAll(r.Body)
+				body, err := io.ReadAll(r.Body)
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 					return
@@ -192,7 +242,7 @@ func TestPostMessageWithBlocksWhenMsgOptionResponseURLApplied(t *testing.T) {
 
 	http.DefaultServeMux = new(http.ServeMux)
 	http.HandleFunc("/response-url", func(rw http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 			return
@@ -220,7 +270,7 @@ func TestPostMessageWithBlocksWhenMsgOptionResponseURLApplied(t *testing.T) {
 func TestPostMessageWhenMsgOptionReplaceOriginalApplied(t *testing.T) {
 	http.DefaultServeMux = new(http.ServeMux)
 	http.HandleFunc("/response-url", func(rw http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 			return
@@ -247,7 +297,7 @@ func TestPostMessageWhenMsgOptionReplaceOriginalApplied(t *testing.T) {
 func TestPostMessageWhenMsgOptionDeleteOriginalApplied(t *testing.T) {
 	http.DefaultServeMux = new(http.ServeMux)
 	http.HandleFunc("/response-url", func(rw http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 			return
@@ -269,4 +319,51 @@ func TestPostMessageWhenMsgOptionDeleteOriginalApplied(t *testing.T) {
 	responseURL := api.endpoint + "response-url"
 
 	_, _, _ = api.PostMessage("CXXX", MsgOptionDeleteOriginal(responseURL))
+}
+
+func TestSendMessageContextRedactsTokenInDebugLog(t *testing.T) {
+	tests := []struct {
+		name  string
+		token string
+		want  string
+	}{
+		{
+			name:  "regular token",
+			token: "xtest-token-1234-abcd",
+			want:  "xtest-REDACTED",
+		},
+		{
+			name:  "refresh token",
+			token: "xoxe.xtest-token-1234-abcd",
+			want:  "xoxe.xtest-REDACTED",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			once.Do(startServer)
+			buf := bytes.NewBufferString("")
+
+			opts := []Option{
+				OptionAPIURL("http://" + serverAddr + "/"),
+				OptionLog(log.New(buf, "", log.Lshortfile)),
+				OptionDebug(true),
+			}
+			api := New(tt.token, opts...)
+			// Why send the token in the message text too? To test that we're not
+			// redacting substrings in the request which look like a token but aren't.
+			api.SendMessage("CXXX", MsgOptionText(token, false))
+			s := buf.String()
+
+			re := regexp.MustCompile(`token=[\w.-]*`)
+			want := "token=" + tt.want
+			if got := re.FindString(s); got != want {
+				t.Errorf("Logged token in SendMessageContext(): got %q, want %q", got, want)
+			}
+			re = regexp.MustCompile(`text=[\w.-]*`)
+			want = "text=" + token
+			if got := re.FindString(s); got != want {
+				t.Errorf("Logged text in SendMessageContext(): got %q, want %q", got, want)
+			}
+		})
+	}
 }
